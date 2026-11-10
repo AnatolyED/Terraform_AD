@@ -9,3 +9,5 @@ Terraform 1.17.1 запускается в Linux-контейнере. Верс�
 - [Развёртывание и подключение к существующим AD и Vault](DEPLOYMENT.md)
 - [Сущности и настройки](CONFIGURATION.md)
 - [Выполненная работа и результаты проверок](WORK-SUMMARY.md)
+
+Ветка Test содержит локальный стенд для Debian 13, mock-тесты и отдельный патч AD-провайдера. [Инструкция по стенду](https://github.com/AnatolyED/Terraform_AD/tree/Test/Развертывание) · [Патч и инструкция по применению](https://github.com/AnatolyED/Terraform_AD/tree/Test/fix)
