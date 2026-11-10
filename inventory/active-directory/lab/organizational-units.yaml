@@ -1,1 +1,11 @@
-{}
+identity:
+  name: Identity
+users:
+  name: Users
+  parent_id: identity
+groups:
+  name: Groups
+  parent_id: identity
+services:
+  name: Services
+  parent_id: identity

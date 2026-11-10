@@ -1,1 +1,8 @@
-{}
+vault-readers:
+  name: Vault Readers
+  sam_account_name: vault-readers
+  ou_id: groups
+  membership:
+    user_ids:
+      - lab-reader
+    group_ids: []

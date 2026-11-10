@@ -1,1 +1,13 @@
-{}
+lab-reader:
+  name: Lab Reader
+  sam_account_name: lab-reader
+  principal_name: lab-reader@lab.example
+  ou_id: users
+  enabled: false
+lab-app:
+  name: Lab Application
+  sam_account_name: lab-app
+  principal_name: lab-app@lab.example
+  ou_id: services
+  enabled: true
+  change_password_at_logon: false

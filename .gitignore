@@ -6,3 +6,9 @@
 *.tfvars.json
 crash.log
 crash.*.log
+.lab/
+.bundle/
+.env
+*.iso
+*.qcow2
+*.key
