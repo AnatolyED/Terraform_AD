@@ -1,0 +1,16 @@
+Среда проверки — Linux-контейнер на Docker Desktop и существующий Windows AD DS в Hyper-V.
+Образы загружены из images.tar. Провайдеры установлены из локального filesystem_mirror.
+Контрольные суммы образов и провайдеров совпали. Запустились GitLab CE, Runner и пять Vault.
+
+Первый AD plan остановился на разборе CA из Windows PEM. После нормализации CRLF и сохранения завершающего LF повторный pipeline прошёл 14 из 14 заданий.
+План AD — 24 добавления, 0 изменений, 0 удалений. Применение AD и пяти Vault прошло успешно.
+
+Vault     LDAP-вход   Политика    LDAPS после плановой ротации   GitLab state
+vault-01  OK          OK          OK                             vault-vault-01
+vault-02  OK          OK          OK                             vault-vault-02
+vault-03  OK          OK          OK                             vault-vault-03
+vault-04  OK          OK          OK                             vault-vault-04
+vault-05  OK          OK          OK                             vault-vault-05
+
+Подтверждены пять различных state lineage и соответствие статических ролей своим учётным записям.
+Создание новой Windows Server VM через KVM на Debian 13 в этом прогоне не проверялось.

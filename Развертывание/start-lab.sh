@@ -29,9 +29,9 @@ if [[ -e $LAB_RUNTIME/compose.env ]]; then
   exit 1
 fi
 mkdir -p "$LAB_RUNTIME/tls" "$LAB_RUNTIME/project"
-cp -- "$LAB_AD_CA_FILE" "$LAB_RUNTIME/tls/ad-ca.pem"
+tr -d '\r' < "$LAB_AD_CA_FILE" > "$LAB_RUNTIME/tls/ad-ca.pem"
 timeout 12 openssl s_client -connect "$LAB_AD_IP:636" -servername "$LAB_AD_HOST" \
-  -verify_hostname "$LAB_AD_HOST" -CAfile "$LAB_AD_CA_FILE" -verify_return_error \
+  -verify_hostname "$LAB_AD_HOST" -CAfile "$LAB_RUNTIME/tls/ad-ca.pem" -verify_return_error \
   </dev/null > "$LAB_RUNTIME/ldaps-check.log" 2>&1
 
 if [[ -z ${LAB_AD_TF_PASSWORD:-} ]]; then
@@ -149,6 +149,7 @@ passwords='{}'
 readers='{}'
 identity="OU=Identity,$LAB_AD_BASE_DN"
 ad_ca=$(cat -- "$tls/ad-ca.pem")
+ad_ca+=$'\n'
 for suffix in 01 02 03 04 05; do
   cluster="vault-$suffix"
   reader="lab-reader-$suffix"

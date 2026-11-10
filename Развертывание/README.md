@@ -14,10 +14,10 @@ git bundle create Terraform_AD-Test.bundle Test
 
 Имя и SHA-256 AD-архива указаны в [инструкции по патчу](../fix/README.md). Для Vault-архива скрипт сначала использует зеркало Terraform Яндекса. При необходимости передайте локальный `VAULT_PROVIDER_ZIP` или разрешите официальный источник через `ALLOW_ORIGIN=1`. OCI-образы берутся по закреплённым digest. При наличии корпоративного реестра передайте доступные ссылки через `GITLAB_IMAGE`, `RUNNER_IMAGE`, `HELPER_IMAGE`, `VAULT_IMAGE` и `TERRAFORM_IMAGE`. Прокси для загрузки образов задаётся у Docker daemon.
 
-Перенесите `Terraform_AD-Test.bundle`, каталог комплекта с `images.tar`, `provider-mirror/` и `SHA256SUMS` в `/home/aed/` на Debian. Для переноса используйте разрешённый носитель или внутреннее хранилище. GitHub хранит код и документацию. Архивы образов и провайдеров распространяются отдельно.
+Перенесите `Terraform_AD-Test.bundle`, `images.tar`, `provider-mirror/` и `SHA256SUMS` в `/home/aed/terraform-ad-offline/` на Debian. Для переноса используйте разрешённый носитель или внутреннее хранилище. GitHub хранит код и документацию. Архивы образов и провайдеров распространяются отдельно.
 
 ```sh
-git clone -b Test /home/aed/Terraform_AD-Test.bundle /home/aed/Terraform_AD
+git clone -b Test /home/aed/terraform-ad-offline/Terraform_AD-Test.bundle /home/aed/Terraform_AD
 cd /home/aed/Terraform_AD
 ```
 
@@ -56,6 +56,8 @@ bash 'Развертывание/start-lab.sh' '/home/aed/terraform-ad-offline'
 
 Скрипт проверяет LDAPS и целостность комплекта, импортирует образы, поднимает Compose без загрузки из сети, создаёт закрытый GitLab-проект, настраивает Runner и JWT-роли Vault. Отдельная копия проекта в `.lab/project` использует исправленный AD-пакет и локальное зеркало Runner. Скрипт генерирует пять пар пользователей и групп для теста и запускает pipeline. Пароли и конфигурация стенда сохраняются в игнорируемом каталоге `.lab` с ограниченными правами.
 
+Для доступа к интерфейсу GitLab добавьте `127.0.0.1 gitlab.terraform.test` в `/etc/hosts` и добавьте `.lab/tls/gitlab-ca.pem` в доверенные сертификаты браузера. Откройте `https://gitlab.terraform.test:8929` с портом из `LAB_GITLAB_PORT`. Начальный пароль `root` доступен в контейнере GitLab в `/etc/gitlab/initial_root_password` после инициализации.
+
 Проверьте планы в GitLab и подтвердите `apply`. Для изолированного стенда можно запустить подтверждения после машинной проверки планов без удалений.
 
 ```sh
@@ -66,7 +68,7 @@ bash 'Развертывание/apply-lab.sh'
 
 ## 4. Проверка и остановка
 
-После завершения 14 заданий запустите проверку. Для неё нужен `ldapwhoami` из пакета `ldap-utils`. FQDN контроллера должен разрешаться на Debian. Скрипт проверяет LDAP-вход, политику, новый bind после ротации и отдельные state для всех пяти Vault. Интервал ротации — 60 секунд. Ожидаемые результаты предыдущего прогона есть в [журналах](../test-results/job-excerpts.txt) и [метаданных проверки](../test-results/matrix-verification.json).
+После завершения 14 заданий запустите проверку. Для неё нужен `ldapwhoami` из пакета `ldap-utils`. FQDN контроллера должен разрешаться на Debian. Скрипт проверяет LDAP-вход, политику, новый bind после ротации и отдельные state для всех пяти Vault. Интервал ротации — 60 секунд. См. [результаты запуска с офлайн-комплектом](../test-results/offline-lab.txt) и [журналы предыдущего прогона](../test-results/job-excerpts.txt).
 
 ```sh
 bash 'Развертывание/verify-lab.sh'
