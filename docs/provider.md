@@ -1,6 +1,6 @@
 # Сборка AD-провайдера
 
-Сборка `0.6.0-ou-dacl.1` основана на теге `v0.6.0`, commit `59358d7159fae9021080cb6fde0686a1c91e2d79`. Патч запрашивает DACL при чтении защищённых OU и содержит регрессионный тест.
+Сборка `0.6.0-ou-dacl.1` основана на теге `v0.6.0`, commit `59358d7159fae9021080cb6fde0686a1c91e2d79`. [Патч](../fix/isometry-ad-v0.6.0-ou-dacl.patch) запрашивает DACL при чтении защищённых OU и содержит регрессионный тест.
 
 ```sh
 git clone --branch v0.6.0 --depth 1 https://github.com/isometry/terraform-provider-ad.git
