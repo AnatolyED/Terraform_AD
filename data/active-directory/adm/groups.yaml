@@ -4,5 +4,5 @@ vault-readers:
   ou_id: groups
   membership:
     user_ids:
-      - lab-reader
+      - adm-reader
     group_ids: []

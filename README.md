@@ -1,14 +1,11 @@
-# Terraform_AD
+# Terraform_AD · Test
 
-Ветка `Test` содержит готовый лабораторный инвентарь, mock-тесты и скрипты для Windows Server 2022 и двух Debian 12 VM. [Запуск стенда](deploy/test/README.md).
+Стенд ADM использует Windows Server 2022, две Debian 12 VM и один Vault.
 
-[Ручное развёртывание по командам](RUNBOOK.md)
+Тестовые YAML находятся в `data/`, mock-тесты в `infra/`, скрипты в `deploy/test/`.
 
-GitLab CI/CD управляет объектами Active Directory из YAML и настраивает LDAP-аутентификацию, политики доступа и ротацию сервисных паролей в Vault. Для AD и каждого Vault используется отдельный GitLab state.
-
-Terraform 1.17.1 запускается в Linux-контейнере. Сборка использует `isometry/ad` 0.6.0-ou-dacl.1 с исправлением чтения DACL и `hashicorp/vault` 5.13.0. Runner на Debian 12 устанавливает провайдеры из офлайн-зеркала. Живые задания выключены по умолчанию. Применение подтверждается вручную.
-
-- [Развёртывание и подключение к существующим AD и Vault](DEPLOYMENT.md)
-- [Сущности и настройки](CONFIGURATION.md)
-
-- [Сборка исправленного AD-провайдера](fix/README.md)
+- [Ручное развёртывание](docs/deployment.md) · порядок действий и команды.
+- [Автоматизация](docs/automation.md) · запуск подготовленных скриптов.
+- [Схема YAML и переменные](docs/configuration.md) · структура данных и настройки CI.
+- [State и сопровождение](docs/operations.md) · импорт, обновление и восстановление.
+- [Сборка AD-провайдера](docs/provider.md) · патч DACL и офлайн-пакет.

@@ -12,3 +12,5 @@ crash.*.log
 *.iso
 *.qcow2
 *.key
+
+.adm/

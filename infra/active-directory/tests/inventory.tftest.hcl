@@ -1,29 +1,29 @@
 mock_provider "ad" {}
 
 variables {
-  inventory_root = "../../inventory"
-  ad_ldap_url = "ldaps://dc1.lab.example:636"
-  ad_managed_base_dn = "OU=Automation,DC=lab,DC=example"
+  inventory_root = "../../data"
+  ad_ldap_url = "ldaps://dc1.adm.example:636"
+  ad_managed_base_dn = "OU=Automation,DC=adm,DC=example"
 }
 
-run "lab_yaml" {
+run "adm_yaml" {
   command = plan
 
   variables {
-    ad_inventory_environment = "lab"
+    ad_inventory_environment = "adm"
     ad_user_passwords = {
-      for id in keys(yamldecode(file("../../inventory/active-directory/lab/users.yaml"))) : id => "Mock-AD-Password-1!"
+      for id in keys(yamldecode(file("../../data/active-directory/adm/users.yaml"))) : id => "Mock-AD-Password-1!"
     }
   }
 }
 
-run "lab_yaml_explicit_membership" {
+run "adm_yaml_explicit_membership" {
   command = plan
 
   variables {
-    ad_inventory_environment = "lab"
+    ad_inventory_environment = "adm"
     ad_user_passwords = {
-      for id in keys(yamldecode(file("../../inventory/active-directory/lab/users.yaml"))) : id => "Mock-AD-Password-1!"
+      for id in keys(yamldecode(file("../../data/active-directory/adm/users.yaml"))) : id => "Mock-AD-Password-1!"
     }
   }
 

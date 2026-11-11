@@ -4,20 +4,20 @@ umask 077
 
 directory=$(cd -- "$(dirname -- "$0")" && pwd)
 source "$(realpath -- "$1")"
-runtime=$(realpath -m -- "${LAB_RUNTIME:-$directory/.lab}")
-project_runtime="$runtime/${LAB_PROJECT_PATH:-terraform-ad-test}"
+runtime=$(realpath -m -- "${ADM_RUNTIME:-$directory/.adm}")
+project_runtime="$runtime/${ADM_PROJECT_PATH:-terraform-ad-adm}"
 project_id=$(cat "$project_runtime/project-id")
 gitlab_token=$(cat "$project_runtime/gitlab-token")
-gitlab_url="https://$LAB_GITLAB_HOST:${LAB_GITLAB_PORT:-8929}/api/v4/projects/$project_id"
-vault_url="https://$LAB_VAULT_HOST:${LAB_VAULT_PORT:-8200}/v1"
-ca="$runtime/tls/lab-ca.pem"
-domain=${LAB_AD_DOMAIN:-lab.example}
+gitlab_url="https://$ADM_GITLAB_HOST:${ADM_GITLAB_PORT:-8929}/api/v4/projects/$project_id"
+vault_url="https://$ADM_VAULT_HOST:${ADM_VAULT_PORT:-8200}/v1"
+ca="$runtime/tls/adm-ca.pem"
+domain=${ADM_AD_DOMAIN:-adm.example}
 [[ $domain =~ ^[a-zA-Z0-9-]+\.(example|test)$ ]]
-prefix=${LAB_ACCOUNT_PREFIX:-lab}
-base_dn=${LAB_AD_MANAGED_BASE_DN:-OU=TerraformLab,DC=lab,DC=example}
-probe="OU=ProtectedProbe,OU=${LAB_IDENTITY_OU:-Identity},$base_dn"
-export LDAPTLS_CACERT="$LAB_AD_CA_FILE" LDAPTLS_REQCERT=demand
-ldap_url="ldaps://$LAB_AD_HOST:636"
+prefix=${ADM_ACCOUNT_PREFIX:-adm}
+base_dn=${ADM_AD_MANAGED_BASE_DN:-OU=TerraformADM,DC=adm,DC=example}
+probe="OU=ProtectedProbe,OU=${ADM_IDENTITY_OU:-Identity},$base_dn"
+export LDAPTLS_CACERT="$ADM_AD_CA_FILE" LDAPTLS_REQCERT=demand
+ldap_url="ldaps://$ADM_AD_HOST:636"
 command -v ldapwhoami >/dev/null
 command -v ldapdelete >/dev/null
 ldap_password=$(mktemp "$project_runtime/ldap-password.XXXXXX")
@@ -31,35 +31,35 @@ gitlab_api() {
 }
 login() {
   jq -ce --arg user "$1" '{password:.[$user]}' "$project_runtime/test-passwords.json" |
-    curl -fsS --max-time 15 --cacert "$ca" -H 'Content-Type: application/json' --data-binary @- "$vault_url/auth/ad-ldap/login/$prefix-${1#lab-}"
+    curl -fsS --max-time 15 --cacert "$ca" -H 'Content-Type: application/json' --data-binary @- "$vault_url/auth/ad-ldap/login/$prefix-${1#adm-}"
 }
 credential() {
-  curl -fsS --max-time 15 --cacert "$ca" -H "X-Vault-Token: $reader_token" "$vault_url/ad-creds/static-cred/lab-app"
+  curl -fsS --max-time 15 --cacert "$ca" -H "X-Vault-Token: $reader_token" "$vault_url/ad-creds/static-cred/adm-app"
 }
 bind() {
   printf '%s' "$2" > "$ldap_password"
   ldapwhoami -x -H "$ldap_url" -D "$1@$domain" -y "$ldap_password" >/dev/null
 }
 
-reader=$(login lab-reader)
-jq -e '.auth.policies | index("ad-lab-app-read") != null' <<< "$reader" >/dev/null
+reader=$(login adm-reader)
+jq -e '.auth.policies | index("ad-adm-app-read") != null' <<< "$reader" >/dev/null
 reader_token=$(jq -er '.auth.client_token' <<< "$reader")
-outsider_token=$(login lab-outsider | jq -er '.auth.client_token')
+outsider_token=$(login adm-outsider | jq -er '.auth.client_token')
 denied=$(curl -sS --max-time 15 --cacert "$ca" -o /dev/null -w '%{http_code}' \
-  -H "X-Vault-Token: $outsider_token" "$vault_url/ad-creds/static-cred/lab-app")
+  -H "X-Vault-Token: $outsider_token" "$vault_url/ad-creds/static-cred/adm-app")
 [[ $denied == 403 ]]
 printf 'LDAP policy granted to reader and denied to outsider\n'
 
-ad_state=$(gitlab_api GET terraform/state/ad-lab)
+ad_state=$(gitlab_api GET terraform/state/ad-adm)
 vault_state=$(gitlab_api GET terraform/state/vault-vault-01)
 [[ $(jq -er '.lineage' <<< "$ad_state") != "$(jq -er '.lineage' <<< "$vault_state")" ]]
 jq -e --arg probe "$probe" 'any(.resources[]; .type == "ad_ou" and any(.instances[]; .index_key == "protected-probe" and .attributes.protected == true and (.attributes.dn | ascii_downcase) == ($probe | ascii_downcase)))' <<< "$ad_state" >/dev/null
 jq -e --arg user "$prefix-app" 'any(.resources[]; .type == "vault_ldap_secret_backend_static_role" and any(.instances[]; .attributes.username == $user))' <<< "$vault_state" >/dev/null
 printf 'AD and Vault state have distinct lineages\n'
 
-if [[ -z ${LAB_AD_TF_PASSWORD:-} ]]; then read -rsp 'Terraform bind password for protected OU check: ' LAB_AD_TF_PASSWORD; printf '\n'; fi
-terraform_upn=${LAB_AD_TF_UPN:-svc-terraform@$domain}
-printf '%s' "$LAB_AD_TF_PASSWORD" > "$ldap_password"
+if [[ -z ${ADM_AD_TF_PASSWORD:-} ]]; then read -rsp 'Terraform bind password for protected OU check: ' ADM_AD_TF_PASSWORD; printf '\n'; fi
+terraform_upn=${ADM_AD_TF_UPN:-svc-terraform@$domain}
+printf '%s' "$ADM_AD_TF_PASSWORD" > "$ldap_password"
 ldapwhoami -x -H "$ldap_url" -D "$terraform_upn" -y "$ldap_password" >/dev/null
 ldapsearch -LLL -x -H "$ldap_url" -D "$terraform_upn" -y "$ldap_password" \
   -b "$probe" -s base '(objectClass=organizationalUnit)' dn | grep -q '^dn:'
@@ -85,7 +85,7 @@ for attempt in $(seq 1 35); do
   sleep 4
 done
 
-branch=${LAB_GIT_BRANCH:-Test}
+branch=${ADM_GIT_BRANCH:-Test}
 if [[ ! -s $project_runtime/repeat-pipeline-id ]]; then
   jq -nc --arg branch "$branch" '{ref:$branch}' | gitlab_api POST pipeline --data-binary @- |
     jq -er '.id' > "$project_runtime/repeat-pipeline-id"

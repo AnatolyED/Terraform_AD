@@ -10,12 +10,12 @@ vault_url=$4
 prefix=$5
 [[ $domain =~ ^[a-zA-Z0-9-]+\.(example|test)$ && $identity_ou =~ ^[a-zA-Z0-9-]+$ ]]
 [[ $vault_url =~ ^https://[A-Za-z0-9.-]+:[0-9]+$ && $prefix =~ ^[a-z][a-z0-9]{0,9}$ ]]
-lab_inventory="$repo/inventory/active-directory/lab"
-mkdir -p "$lab_inventory" "$repo/inventory/vault"
-cp "$root/inventory/active-directory/lab/"*.yaml "$lab_inventory/"
-cp "$root/inventory/vault/clusters.yaml" "$repo/inventory/vault/clusters.yaml"
-sed -i "s/^  name: Identity$/  name: $identity_ou/" "$lab_inventory/ou.yaml"
-sed -i -e "s/@lab\.example/@$domain/g" \
-  -e "s/^  \(sam_account_name\|principal_name\): lab-/  \1: $prefix-/" "$lab_inventory/users.yaml"
-sed -i "s/^  sam_account_name: vault-readers$/  sam_account_name: $prefix-readers/" "$lab_inventory/groups.yaml"
-sed -i "s|^  address: .*|  address: $vault_url|" "$repo/inventory/vault/clusters.yaml"
+adm_inventory="$repo/data/active-directory/adm"
+mkdir -p "$adm_inventory" "$repo/data/vault"
+cp "$root/data/active-directory/adm/"*.yaml "$adm_inventory/"
+cp "$root/data/vault/clusters.yaml" "$repo/data/vault/clusters.yaml"
+sed -i "s/^  name: Identity$/  name: $identity_ou/" "$adm_inventory/ou.yaml"
+sed -i -e "s/@adm\.example/@$domain/g" \
+  -e "s/^  \(sam_account_name\|principal_name\): adm-/  \1: $prefix-/" "$adm_inventory/users.yaml"
+sed -i "s/^  sam_account_name: vault-readers$/  sam_account_name: $prefix-readers/" "$adm_inventory/groups.yaml"
+sed -i "s|^  address: .*|  address: $vault_url|" "$repo/data/vault/clusters.yaml"

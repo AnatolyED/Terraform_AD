@@ -2,9 +2,11 @@
 
 ## 1. Сущности инвентаря
 
-Замените значения `.example` своими данными. Ключи `services`, `app-readers` и `app-service` стабильны. Ссылки в YAML используют эти ключи.
+Для рабочего контура используйте окружение production, для стенда — adm.
 
-`inventory/active-directory/production/ou.yaml`
+ADM — короткое имя домена в примерах, `adm.example` — условное DNS-имя. Ключи `services`, `app-readers` и `app-service` стабильны. Ссылки в YAML используют эти ключи.
+
+`data/active-directory/<окружение>/ou.yaml`
 
 ```yaml
 services:
@@ -14,13 +16,13 @@ services:
 
 `name` задаёт RDN OU. Для дочерней OU задайте `parent_id` с ключом OU верхнего уровня. Поддерживаются два уровня под делегированной OU.
 
-`inventory/active-directory/production/users.yaml`
+`data/active-directory/<окружение>/users.yaml`
 
 ```yaml
 app-service:
   name: Application Service
   sam_account_name: app-service
-  principal_name: app-service@corp.example
+  principal_name: app-service@adm.example
   ou_id: services
   enabled: true
   change_password_at_logon: false
@@ -29,7 +31,7 @@ app-service:
 
 Для новой активной записи передайте начальный пароль через `TF_VAR_ad_user_passwords`. После передачи записи в Vault управление паролем выполняет Vault. Дополнительные поля пользователя — `display_name`, `given_name`, `surname`, `email_address` и `description`.
 
-`inventory/active-directory/production/groups.yaml`
+`data/active-directory/<окружение>/groups.yaml`
 
 ```yaml
 app-readers:
@@ -45,12 +47,12 @@ app-readers:
 
 `membership` задаёт полный состав прямых участников по ключам YAML. Два пустых списка очищают состав. Если поле пропущено, состав группы контролируется в AD. Перед применением заполните списки фактическими читателями. Для ротации используйте отдельную сервисную учётку.
 
-`inventory/vault/clusters.yaml`
+`data/vault/clusters.yaml`
 
 ```yaml
 vault-01:
-  address: https://vault-01.corp.example
-  ad_environment: production
+  address: https://vault-01.adm.example
+  ad_environment: adm
   auth_bind_password_version: 1
   secrets_bind_password_version: 1
   policies:
@@ -71,14 +73,14 @@ vault-01:
 | Переменная GitLab | Значение |
 | --- | --- |
 | `AD_DEPLOY_ENABLED` | `false` по умолчанию. `true` включает `ad:plan` и `ad:apply` |
-| `AD_DEPLOY_ENVIRONMENT` | `production` по умолчанию и единственное допустимое значение. Используются scope `ad/production` и state `ad-production` |
+| `AD_DEPLOY_ENVIRONMENT` | `production` по умолчанию. Область `ad/<окружение>` и state `ad-<окружение>` |
 | `VAULT_DEPLOY_MODE` | `off` по умолчанию, `single` включает выбранный Vault, `all` включает все строки матрицы |
 | `VAULT_TARGET_ID` | Ключ строки матрицы для режима `single` |
 | `TF_CLI_CONFIG_FILE` | Необязательная GitLab-переменная типа File. Задаёт собственную конфигурацию источников провайдеров |
 
 ### AD
 
-Задайте переменные с областью `ad/production`.
+Задайте переменные с областью `ad/<окружение>`.
 
 | Переменная | Значение |
 | --- | --- |

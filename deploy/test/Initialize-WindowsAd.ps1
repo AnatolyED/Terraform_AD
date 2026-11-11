@@ -4,9 +4,9 @@ param(
   [ValidateSet('Forest','Directory')]
   [string]$Phase,
   [ValidatePattern('^[a-zA-Z0-9-]+\.(example|test)$')]
-  [string]$LabDomain = 'lab.example',
+  [string]$AdmDomain = 'adm.example',
   [ValidatePattern('^[a-zA-Z][a-zA-Z0-9-]*$')]
-  [string]$ManagedOu = 'TerraformLab',
+  [string]$ManagedOu = 'TerraformADM',
   [System.Net.IPAddress[]]$DebianIp,
   [string]$OutputDirectory = 'C:\TerraformAD',
   [switch]$Check
@@ -19,15 +19,15 @@ if (!$principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
   throw 'Run PowerShell as Administrator.'
 }
 $computer = Get-CimInstance Win32_ComputerSystem
-if ($computer.PartOfDomain -and $computer.Domain -ne $LabDomain) {
+if ($computer.PartOfDomain -and $computer.Domain -ne $AdmDomain) {
   throw 'This script requires a dedicated test domain.'
 }
 if ($Phase -eq 'Forest') {
-  if ($computer.PartOfDomain) { Write-Output "Domain already configured: $LabDomain"; return }
+  if ($computer.PartOfDomain) { Write-Output "Domain already configured: $AdmDomain"; return }
   if ($Check) { Get-WindowsFeature AD-Domain-Services | Select-Object Name,InstallState; return }
   Install-WindowsFeature AD-Domain-Services -IncludeManagementTools | Out-Null
   $dsrm = Read-Host 'Directory Services Restore Mode password' -AsSecureString
-  Install-ADDSForest -DomainName $LabDomain -InstallDns -SafeModeAdministratorPassword $dsrm -Force
+  Install-ADDSForest -DomainName $AdmDomain -DomainNetbiosName ADM -InstallDns -SafeModeAdministratorPassword $dsrm -Force
   return
 }
 
@@ -59,7 +59,7 @@ foreach ($name in 'svc-terraform','svc-auth','svc-rotation') {
   $account = Get-ADUser -LDAPFilter "(sAMAccountName=$name)" -Server $fqdn
   if (!$account) {
     $password = Read-Host "Password for $name" -AsSecureString
-    $account = New-ADUser -Name $name -SamAccountName $name -UserPrincipalName "$name@$LabDomain" `
+    $account = New-ADUser -Name $name -SamAccountName $name -UserPrincipalName "$name@$AdmDomain" `
       -Path $domain.UsersContainer -AccountPassword $password -Enabled $true -Server $fqdn -PassThru
   }
   if (!$account.Enabled) { throw "Account is disabled: $name" }

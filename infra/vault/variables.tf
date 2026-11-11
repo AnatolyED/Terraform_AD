@@ -11,7 +11,7 @@ variable "vault_cluster_id" {
 
   validation {
     condition = contains(keys(local.vault_clusters), var.vault_cluster_id)
-    error_message = "Кластер Vault должен быть описан в inventory/vault/clusters.yaml."
+    error_message = "Кластер Vault должен быть описан в data/vault/clusters.yaml."
   }
 }
 

@@ -5,39 +5,39 @@ umask 077
 directory=$(cd -- "$(dirname -- "$0")" && pwd)
 source "$(realpath -- "$1")"
 project_runtime=$2
-runtime=$(realpath -m -- "${LAB_RUNTIME:-$directory/.lab}")
+runtime=$(realpath -m -- "${ADM_RUNTIME:-$directory/.adm}")
 tls="$runtime/tls"
-gitlab_url="https://$LAB_GITLAB_HOST:${LAB_GITLAB_PORT:-8929}"
-vault_url="https://$LAB_VAULT_HOST:${LAB_VAULT_PORT:-8200}"
+gitlab_url="https://$ADM_GITLAB_HOST:${ADM_GITLAB_PORT:-8929}"
+vault_url="https://$ADM_VAULT_HOST:${ADM_VAULT_PORT:-8200}"
 project_id=$(cat "$project_runtime/project-id")
-branch=${LAB_GIT_BRANCH:-Test}
-domain=${LAB_AD_DOMAIN:-lab.example}
-base_dn=${LAB_AD_MANAGED_BASE_DN:-OU=TerraformLab,DC=lab,DC=example}
+branch=${ADM_GIT_BRANCH:-Test}
+domain=${ADM_AD_DOMAIN:-adm.example}
+base_dn=${ADM_AD_MANAGED_BASE_DN:-OU=TerraformADM,DC=adm,DC=example}
 domain_dn="DC=${domain//./,DC=}"
-identity="OU=${LAB_IDENTITY_OU:-Identity},$base_dn"
+identity="OU=${ADM_IDENTITY_OU:-Identity},$base_dn"
 cluster=vault-01
 scope="vault/$cluster"
 gitlab_token=$(cat "$project_runtime/gitlab-token")
-vault_token=${LAB_VAULT_ADMIN_TOKEN:-}
+vault_token=${ADM_VAULT_ADMIN_TOKEN:-}
 if [[ -z $vault_token && -s $runtime/vault-init.json ]]; then
   vault_token=$(jq -er '.root_token' "$runtime/vault-init.json")
 fi
 if [[ -z $vault_token ]]; then read -rsp 'Test Vault bootstrap token: ' vault_token; printf '\n'; fi
-if [[ -z ${LAB_AD_TF_PASSWORD:-} ]]; then read -rsp 'Terraform bind password: ' LAB_AD_TF_PASSWORD; printf '\n'; fi
-if [[ -z ${LAB_AD_AUTH_PASSWORD:-} ]]; then read -rsp 'Vault LDAP bind password: ' LAB_AD_AUTH_PASSWORD; printf '\n'; fi
-if [[ -z ${LAB_AD_ROTATION_PASSWORD:-} ]]; then read -rsp 'Vault rotation bind password: ' LAB_AD_ROTATION_PASSWORD; printf '\n'; fi
-[[ -n $vault_token && -n $LAB_AD_TF_PASSWORD && -n $LAB_AD_AUTH_PASSWORD && -n $LAB_AD_ROTATION_PASSWORD ]]
+if [[ -z ${ADM_AD_TF_PASSWORD:-} ]]; then read -rsp 'Terraform bind password: ' ADM_AD_TF_PASSWORD; printf '\n'; fi
+if [[ -z ${ADM_AD_AUTH_PASSWORD:-} ]]; then read -rsp 'Vault LDAP bind password: ' ADM_AD_AUTH_PASSWORD; printf '\n'; fi
+if [[ -z ${ADM_AD_ROTATION_PASSWORD:-} ]]; then read -rsp 'Vault rotation bind password: ' ADM_AD_ROTATION_PASSWORD; printf '\n'; fi
+[[ -n $vault_token && -n $ADM_AD_TF_PASSWORD && -n $ADM_AD_AUTH_PASSWORD && -n $ADM_AD_ROTATION_PASSWORD ]]
 
 vault_api() {
   local method=$1 path=$2
   shift 2
-  curl -fsS --max-time 20 --cacert "$tls/lab-ca.pem" -H @<(printf 'X-Vault-Token: %s\n' "$vault_token") \
+  curl -fsS --max-time 20 --cacert "$tls/adm-ca.pem" -H @<(printf 'X-Vault-Token: %s\n' "$vault_token") \
     -H 'Content-Type: application/json' -X "$method" "$vault_url/v1/$path" "$@"
 }
 gitlab_api() {
   local method=$1 path=$2
   shift 2
-  curl -fsS --max-time 20 --cacert "$tls/lab-ca.pem" -H @<(printf 'PRIVATE-TOKEN: %s\n' "$gitlab_token") \
+  curl -fsS --max-time 20 --cacert "$tls/adm-ca.pem" -H @<(printf 'PRIVATE-TOKEN: %s\n' "$gitlab_token") \
     -H 'Content-Type: application/json' -X "$method" "$gitlab_url/api/v4/projects/$project_id/$path" "$@"
 }
 variable() {
@@ -63,7 +63,7 @@ if configured=$(vault_api GET auth/gitlab-jwt/role/terraform-plan 2>/dev/null); 
     exit 1
   }
 fi
-jq -nc --arg issuer "$gitlab_url" --rawfile ca "$tls/lab-ca.pem" \
+jq -nc --arg issuer "$gitlab_url" --rawfile ca "$tls/adm-ca.pem" \
   '{oidc_discovery_url:$issuer,bound_issuer:$issuer,oidc_discovery_ca_pem:$ca}' |
   vault_api POST auth/gitlab-jwt/config --data-binary @- >/dev/null
 for phase in plan apply; do
@@ -81,29 +81,29 @@ done
 passwords="$project_runtime/test-passwords.json"
 if [[ ! -s $passwords ]]; then
   jq -nc --arg reader "T1a!$(openssl rand -hex 18)" --arg outsider "T2a!$(openssl rand -hex 18)" --arg app "T3a!$(openssl rand -hex 18)" \
-    '{"lab-reader":$reader,"lab-outsider":$outsider,"lab-app":$app}' > "$passwords"
+    '{"adm-reader":$reader,"adm-outsider":$outsider,"adm-app":$app}' > "$passwords"
 fi
-ad_ca=$(tr -d '\r' < "$LAB_AD_CA_FILE")
+ad_ca=$(tr -d '\r' < "$ADM_AD_CA_FILE")
 ad_ca+=$'\n'
-vault_ca=$(cat "$tls/lab-ca.pem")
+vault_ca=$(cat "$tls/adm-ca.pem")
 vault_ca+=$'\n'
 variable AD_DEPLOY_ENABLED true '*'
-variable AD_DEPLOY_ENVIRONMENT lab '*'
+variable AD_DEPLOY_ENVIRONMENT adm '*'
 variable VAULT_DEPLOY_MODE single '*'
 variable VAULT_TARGET_ID "$cluster" '*'
-variable AD_USERNAME "${LAB_AD_TF_UPN:-svc-terraform@$domain}" ad/lab
-variable AD_PASSWORD "$LAB_AD_TF_PASSWORD" ad/lab true
-variable AD_TLS_CA_CERT_FILE "$ad_ca" ad/lab false file
-variable TF_VAR_ad_ldap_url "ldaps://$LAB_AD_HOST:636" ad/lab
-variable TF_VAR_ad_managed_base_dn "$base_dn" ad/lab
-variable TF_VAR_ad_user_passwords "$(cat "$passwords")" ad/lab true
+variable AD_USERNAME "${ADM_AD_TF_UPN:-svc-terraform@$domain}" ad/adm
+variable AD_PASSWORD "$ADM_AD_TF_PASSWORD" ad/adm true
+variable AD_TLS_CA_CERT_FILE "$ad_ca" ad/adm false file
+variable TF_VAR_ad_ldap_url "ldaps://$ADM_AD_HOST:636" ad/adm
+variable TF_VAR_ad_managed_base_dn "$base_dn" ad/adm
+variable TF_VAR_ad_user_passwords "$(cat "$passwords")" ad/adm true
 variable VAULT_CACERT "$vault_ca" "$scope" false file
-variable TF_VAR_vault_ldap_url "ldaps://$LAB_AD_HOST:636" "$scope"
+variable TF_VAR_vault_ldap_url "ldaps://$ADM_AD_HOST:636" "$scope"
 variable TF_VAR_vault_ldap_ca_file "$ad_ca" "$scope" false file
-variable TF_VAR_vault_ldap_auth_bind_dn "${LAB_AD_AUTH_DN:-CN=svc-auth,CN=Users,$domain_dn}" "$scope"
-variable TF_VAR_vault_ldap_auth_bind_password "$LAB_AD_AUTH_PASSWORD" "$scope" true
+variable TF_VAR_vault_ldap_auth_bind_dn "${ADM_AD_AUTH_DN:-CN=svc-auth,CN=Users,$domain_dn}" "$scope"
+variable TF_VAR_vault_ldap_auth_bind_password "$ADM_AD_AUTH_PASSWORD" "$scope" true
 variable TF_VAR_vault_ldap_auth_user_dn "$identity" "$scope"
 variable TF_VAR_vault_ldap_auth_group_dn "OU=Groups,$identity" "$scope"
-variable TF_VAR_vault_ldap_secrets_bind_dn "${LAB_AD_ROTATION_DN:-CN=svc-rotation,CN=Users,$domain_dn}" "$scope"
-variable TF_VAR_vault_ldap_secrets_bind_password "$LAB_AD_ROTATION_PASSWORD" "$scope" true
+variable TF_VAR_vault_ldap_secrets_bind_dn "${ADM_AD_ROTATION_DN:-CN=svc-rotation,CN=Users,$domain_dn}" "$scope"
+variable TF_VAR_vault_ldap_secrets_bind_password "$ADM_AD_ROTATION_PASSWORD" "$scope" true
 variable TF_VAR_vault_ldap_secrets_user_dn "OU=Services,$identity" "$scope"

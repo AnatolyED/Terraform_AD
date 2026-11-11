@@ -1,15 +1,15 @@
 mock_provider "vault" {}
 
 variables {
-  inventory_root = "../../inventory"
-  vault_ldap_url = "ldaps://dc1.lab.example:636"
-  vault_ldap_auth_bind_dn = "CN=Lab Auth,OU=Services,DC=lab,DC=example"
+  inventory_root = "../../data"
+  vault_ldap_url = "ldaps://dc1.adm.example:636"
+  vault_ldap_auth_bind_dn = "CN=ADM Auth,OU=Services,DC=adm,DC=example"
   vault_ldap_auth_bind_password = "mock-auth-password"
-  vault_ldap_auth_user_dn = "OU=Users,DC=lab,DC=example"
-  vault_ldap_auth_group_dn = "OU=Groups,DC=lab,DC=example"
-  vault_ldap_secrets_bind_dn = "CN=Lab Rotation,OU=Services,DC=lab,DC=example"
+  vault_ldap_auth_user_dn = "OU=Users,DC=adm,DC=example"
+  vault_ldap_auth_group_dn = "OU=Groups,DC=adm,DC=example"
+  vault_ldap_secrets_bind_dn = "CN=ADM Rotation,OU=Services,DC=adm,DC=example"
   vault_ldap_secrets_bind_password = "mock-secrets-password"
-  vault_ldap_secrets_user_dn = "OU=Services,DC=lab,DC=example"
+  vault_ldap_secrets_user_dn = "OU=Services,DC=adm,DC=example"
 }
 
 run "ldap_auth_and_static_rotation" {
@@ -45,7 +45,7 @@ run "isolated_policy" {
   }
 
   assert {
-    condition = toset(keys(vault_ldap_secret_backend_static_role.directory)) == toset(["lab-app"]) && toset(keys(vault_ldap_auth_backend_group.directory)) == toset(["vault-readers"])
+    condition = toset(keys(vault_ldap_secret_backend_static_role.directory)) == toset(["adm-app"]) && toset(keys(vault_ldap_auth_backend_group.directory)) == toset(["vault-readers"])
     error_message = "Роли и группы должны загружаться только для выбранного кластера."
   }
 }

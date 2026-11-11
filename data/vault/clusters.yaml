@@ -1,0 +1,14 @@
+vault-01:
+  address: https://vault.adm.example:8200
+  ad_environment: adm
+  auth_bind_password_version: 1
+  secrets_bind_password_version: 1
+  policies:
+    adm-app-read:
+      ad-creds/static-cred/adm-app: [read]
+  group_policies:
+    vault-readers: [adm-app-read]
+  static_roles:
+    adm-app:
+      user_id: adm-app
+      rotation_period_seconds: 60

@@ -5,49 +5,49 @@ umask 077
 directory=$(cd -- "$(dirname -- "$0")" && pwd)
 root=$(cd -- "$directory/../.." && pwd)
 source "$(realpath -- "$1")"
-: "${LAB_AD_CA_FILE:?}" "${LAB_AD_HOST:?}" "${LAB_AD_IP:?}" "${OFFLINE_BUNDLE:?}"
-runtime=$(realpath -m -- "${LAB_RUNTIME:-$directory/.lab}")
-LAB_RUNTIME=$runtime
-LAB_GITLAB_PORT=${LAB_GITLAB_PORT:-8929}
-LAB_VAULT_PORT=${LAB_VAULT_PORT:-8200}
-export LAB_RUNTIME LAB_GITLAB_HOST LAB_GITLAB_PORT LAB_VAULT_HOST LAB_VAULT_PORT LAB_AD_HOST LAB_AD_IP
-export LAB_GITLAB_BIND_IP LAB_VAULT_BIND_IP
+: "${ADM_AD_CA_FILE:?}" "${ADM_AD_HOST:?}" "${ADM_AD_IP:?}" "${OFFLINE_BUNDLE:?}"
+runtime=$(realpath -m -- "${ADM_RUNTIME:-$directory/.adm}")
+ADM_RUNTIME=$runtime
+ADM_GITLAB_PORT=${ADM_GITLAB_PORT:-8929}
+ADM_VAULT_PORT=${ADM_VAULT_PORT:-8200}
+export ADM_RUNTIME ADM_GITLAB_HOST ADM_GITLAB_PORT ADM_VAULT_HOST ADM_VAULT_PORT ADM_AD_HOST ADM_AD_IP
+export ADM_GITLAB_BIND_IP ADM_VAULT_BIND_IP
 tls="$runtime/tls"
-gitlab_url="https://$LAB_GITLAB_HOST:${LAB_GITLAB_PORT:-8929}"
-vault_url="https://$LAB_VAULT_HOST:${LAB_VAULT_PORT:-8200}"
-project_path=${LAB_PROJECT_PATH:-terraform-ad-test}
-branch=${LAB_GIT_BRANCH:-Test}
-source_repo=${LAB_SOURCE_REPO:-$root}
-source_ref=${LAB_SOURCE_REF:-HEAD}
-domain=${LAB_AD_DOMAIN:-lab.example}
-base_dn=${LAB_AD_MANAGED_BASE_DN:-OU=TerraformLab,DC=lab,DC=example}
-identity_ou=${LAB_IDENTITY_OU:-Identity}
+gitlab_url="https://$ADM_GITLAB_HOST:${ADM_GITLAB_PORT:-8929}"
+vault_url="https://$ADM_VAULT_HOST:${ADM_VAULT_PORT:-8200}"
+project_path=${ADM_PROJECT_PATH:-terraform-ad-adm}
+branch=${ADM_GIT_BRANCH:-Test}
+source_repo=${ADM_SOURCE_REPO:-$root}
+source_ref=${ADM_SOURCE_REF:-HEAD}
+domain=${ADM_AD_DOMAIN:-adm.example}
+base_dn=${ADM_AD_MANAGED_BASE_DN:-OU=TerraformADM,DC=adm,DC=example}
+identity_ou=${ADM_IDENTITY_OU:-Identity}
 [[ $project_path =~ ^terraform-ad-[a-z0-9-]+$ && $domain =~ ^[a-zA-Z0-9.-]+$ && $identity_ou =~ ^[a-zA-Z0-9-]+$ ]]
 git check-ref-format --branch "$branch" >/dev/null
 
 for attempt in $(seq 1 90); do
-  if curl -fsS --max-time 8 --cacert "$tls/lab-ca.pem" "$gitlab_url/.well-known/openid-configuration" 2>/dev/null |
+  if curl -fsS --max-time 8 --cacert "$tls/adm-ca.pem" "$gitlab_url/.well-known/openid-configuration" 2>/dev/null |
     jq -e --arg issuer "$gitlab_url" '.issuer == $issuer' >/dev/null; then break; fi
   [[ $attempt -lt 90 ]] || { printf 'GitLab OIDC unavailable: %s\n' "$gitlab_url" >&2; exit 1; }
   sleep 5
 done
-curl -fsS --max-time 10 --cacert "$tls/lab-ca.pem" "$vault_url/v1/sys/health" >/dev/null
-timeout 10 openssl s_client -brief -connect "$LAB_AD_IP:636" -servername "$LAB_AD_HOST" \
-  -verify_hostname "$LAB_AD_HOST" -verify_return_error -CAfile "$LAB_AD_CA_FILE" </dev/null
+curl -fsS --max-time 10 --cacert "$tls/adm-ca.pem" "$vault_url/v1/sys/health" >/dev/null
+timeout 10 openssl s_client -brief -connect "$ADM_AD_IP:636" -servername "$ADM_AD_HOST" \
+  -verify_hostname "$ADM_AD_HOST" -verify_return_error -CAfile "$ADM_AD_CA_FILE" </dev/null
 
 project_runtime="$runtime/$project_path"
 mkdir -p "$project_runtime"
 token_file="$project_runtime/gitlab-token"
 token_status=401
 if [[ -s $token_file ]]; then
-  token_status=$(curl -sS --max-time 15 --cacert "$tls/lab-ca.pem" -H "PRIVATE-TOKEN: $(cat "$token_file")" \
+  token_status=$(curl -sS --max-time 15 --cacert "$tls/adm-ca.pem" -H "PRIVATE-TOKEN: $(cat "$token_file")" \
     -o /dev/null -w '%{http_code}' "$gitlab_url/api/v4/user")
 fi
 if [[ $token_status == 401 ]]; then
   token=$(docker compose -f "$directory/compose.yaml" --profile terraform exec -T gitlab gitlab-rails runner - <<'RUBY'
 root = User.find_by_username('root')
 ApplicationSetting.current.update!(signup_enabled: false)
-token = root.personal_access_tokens.create!(name: 'terraform-ad-test-bootstrap', scopes: [:api, :create_runner, :write_repository], expires_at: Date.current + 2)
+token = root.personal_access_tokens.create!(name: 'terraform-ad-adm-bootstrap', scopes: [:api, :create_runner, :write_repository], expires_at: Date.current + 2)
 puts token.token
 RUBY
 )
@@ -61,7 +61,7 @@ token=$(cat "$token_file")
 api() {
   local method=$1 path=$2
   shift 2
-  curl -fsS --max-time 50 --cacert "$tls/lab-ca.pem" -H "PRIVATE-TOKEN: $token" \
+  curl -fsS --max-time 50 --cacert "$tls/adm-ca.pem" -H "PRIVATE-TOKEN: $token" \
     -H 'Content-Type: application/json' -X "$method" "$gitlab_url/api/v4/$path" "$@"
 }
 if ! project=$(api GET "projects/root%2F$project_path" 2>/dev/null); then
@@ -78,13 +78,13 @@ if [[ ! -s $project_runtime/source-commit ]]; then
   git -C "$repo" fetch --no-tags "$source_repo" "$source_ref"
   source_commit=$(git -C "$repo" rev-parse FETCH_HEAD)
   git -C "$repo" checkout -B "$branch" "$source_commit"
-  bash "$directory/stage-inventory.sh" "$repo" "$domain" "$identity_ou" "$vault_url" "${LAB_ACCOUNT_PREFIX:-lab}"
-  git -C "$repo" add -- inventory
+  bash "$directory/stage-inventory.sh" "$repo" "$domain" "$identity_ou" "$vault_url" "${ADM_ACCOUNT_PREFIX:-adm}"
+  git -C "$repo" add -- data
   if ! git -C "$repo" diff --cached --quiet; then
-    git -C "$repo" -c user.name='Terraform AD Test' -c user.email=terraform-ad-test@localhost commit -m 'Configure isolated test inventory'
+    git -C "$repo" -c user.name='Terraform AD Test' -c user.email=terraform-ad-adm@localhost commit -m 'Configure isolated test inventory'
   fi
   auth=$(printf 'oauth2:%s' "$token" | base64 -w0)
-  GIT_CONFIG_COUNT=2 GIT_CONFIG_KEY_0=http.sslCAInfo GIT_CONFIG_VALUE_0="$tls/lab-ca.pem" \
+  GIT_CONFIG_COUNT=2 GIT_CONFIG_KEY_0=http.sslCAInfo GIT_CONFIG_VALUE_0="$tls/adm-ca.pem" \
     GIT_CONFIG_KEY_1=http.extraHeader GIT_CONFIG_VALUE_1="Authorization: Basic $auth" \
     git -C "$repo" push -o ci.skip "$gitlab_url/root/$project_path.git" "$branch"
   printf '%s\n' "$source_commit" > "$project_runtime/source-commit"
@@ -114,11 +114,11 @@ for kind in validate deploy; do
   if [[ $kind == deploy ]]; then tag=terraform-deploy; access=ref_protected; fi
   runner_config="$project_runtime/runner-$kind.local.env"
   {
-    printf 'GITLAB_URL=%q\nGITLAB_CA_FILE=%q\nGITLAB_PROJECT_ID=%q\nOFFLINE_BUNDLE=%q\n' "$gitlab_url" "$tls/lab-ca.pem" "$project_id" "$OFFLINE_BUNDLE"
-    printf 'AD_HOST=%q\nAD_CA_FILE=%q\nAD_MANAGED_BASE_DN=%q\nRUNNER_KIND=%q\n' "$LAB_AD_HOST" "$LAB_AD_CA_FILE" "$base_dn" "$kind"
-    printf 'AD_CONNECT_IP=%q\n' "$LAB_AD_IP"
-    printf 'RUNNER_STATE_ROOT=%q\nRUNNER_JOB_NETWORK=%q\n' "$runtime/runners" terraform-ad-debian12-test
-    printf 'RUNNER_EXTRA_HOSTS=(%q)\nVAULT_ENDPOINTS=(%q)\n' "$LAB_AD_HOST:$LAB_AD_IP" "$vault_url|$tls/lab-ca.pem"
+    printf 'GITLAB_URL=%q\nGITLAB_CA_FILE=%q\nGITLAB_PROJECT_ID=%q\nOFFLINE_BUNDLE=%q\n' "$gitlab_url" "$tls/adm-ca.pem" "$project_id" "$OFFLINE_BUNDLE"
+    printf 'AD_HOST=%q\nAD_CA_FILE=%q\nAD_MANAGED_BASE_DN=%q\nRUNNER_KIND=%q\n' "$ADM_AD_HOST" "$ADM_AD_CA_FILE" "$base_dn" "$kind"
+    printf 'AD_CONNECT_IP=%q\n' "$ADM_AD_IP"
+    printf 'RUNNER_STATE_ROOT=%q\nRUNNER_JOB_NETWORK=%q\n' "$runtime/runners" terraform-ad-debian12-adm
+    printf 'RUNNER_EXTRA_HOSTS=(%q)\nVAULT_ENDPOINTS=(%q)\n' "$ADM_AD_HOST:$ADM_AD_IP" "$vault_url|$tls/adm-ca.pem"
   } > "$runner_config"
   runner_token_file="$project_runtime/runner-$kind.token"
   if [[ ! -s $runtime/runners/terraform-ad-$project_id-$kind/config.toml ]]; then

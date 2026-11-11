@@ -10,11 +10,21 @@ require_file() {
   [ -s "$1" ] || fail "Required file is missing or empty: $1"
 }
 
+require_configured_map() {
+  require_file "$1"
+  awk '
+    { sub(/#.*/, ""); gsub(/[[:space:]]/, "") }
+    $0 != "" && $0 != "---" && $0 != "..." { content = content $0 }
+    END { exit (content == "" || content == "{}") }
+  ' "$1" || fail "Populate the YAML map before deployment: $1"
+}
+
 case "$1" in
   infra/active-directory)
     printf '%s\n' "$TF_VAR_ad_inventory_environment" | grep -Eq '^[a-z][a-z0-9-]*$' || fail 'Invalid AD inventory environment'
     directory="$TF_VAR_inventory_root/active-directory/$TF_VAR_ad_inventory_environment"
-    for file in ou.yaml groups.yaml users.yaml; do
+    require_configured_map "$directory/ou.yaml"
+    for file in groups.yaml users.yaml; do
       require_file "$directory/$file"
     done
     : "${AD_USERNAME:?Required: AD_USERNAME}" "${AD_PASSWORD:?Required: AD_PASSWORD}"
@@ -22,7 +32,7 @@ case "$1" in
     require_file "${AD_TLS_CA_CERT_FILE:?Required: AD_TLS_CA_CERT_FILE}"
     ;;
   infra/vault)
-    require_file "$TF_VAR_inventory_root/vault/clusters.yaml"
+    require_configured_map "$TF_VAR_inventory_root/vault/clusters.yaml"
     : "${TF_VAR_vault_cluster_id:?Required: TF_VAR_vault_cluster_id}"
     : "${TF_VAR_vault_ldap_url:?Required: TF_VAR_vault_ldap_url}"
     : "${TF_VAR_vault_ldap_auth_bind_dn:?Required: TF_VAR_vault_ldap_auth_bind_dn}"

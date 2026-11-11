@@ -42,8 +42,8 @@ mkdir -p -- "$runner_home"
 runner_home=$(realpath -- "$runner_home")
 docker image load -i "$bundle/runner-images.tar"
 network=${RUNNER_JOB_NETWORK:-bridge}
-mounts=(--network "$network" --mount "type=bind,source=$runner_home,target=/etc/gitlab-runner" --mount "type=bind,source=$gitlab_ca,target=/gitlab-ca.pem,readonly" --mount 'type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock')
-registration=(--non-interactive --url "$GITLAB_URL" --name "$runner_name" --executor docker --tls-ca-file /gitlab-ca.pem --docker-image "$terraform_image" --docker-helper-image "$helper_image" --docker-pull-policy never --docker-network-mode "$network" --docker-volumes "$bundle/provider-mirror:/providers:ro")
+mounts=(--network "$network" --mount "type=bind,source=$runner_home,target=/etc/gitlab-runner" --mount "type=bind,source=$gitlab_ca,target=/gitadm-ca.pem,readonly" --mount 'type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock')
+registration=(--non-interactive --url "$GITLAB_URL" --name "$runner_name" --executor docker --tls-ca-file /gitadm-ca.pem --docker-image "$terraform_image" --docker-helper-image "$helper_image" --docker-pull-policy never --docker-network-mode "$network" --docker-volumes "$bundle/provider-mirror:/providers:ro")
 for host in "${RUNNER_EXTRA_HOSTS[@]:-}"; do
   [[ -n $host ]] || continue
   mounts+=(--add-host "$host")

@@ -3,7 +3,7 @@ mock_provider "ad" {
 
   mock_resource "ad_ou" {
     defaults = {
-      dn = "OU=Mock,OU=Automation,DC=lab,DC=example"
+      dn = "OU=Mock,OU=Automation,DC=adm,DC=example"
     }
   }
 
@@ -21,7 +21,7 @@ mock_provider "ad" {
 }
 
 variables {
-  managed_base_dn = "OU=Automation,DC=lab,DC=example"
+  managed_base_dn = "OU=Automation,DC=adm,DC=example"
   user_passwords = {}
 }
 
@@ -40,22 +40,22 @@ run "explicit_membership" {
       }
       users = {
         reader = {
-          name = "Lab Reader"
-          sam_account_name = "lab-reader"
-          principal_name = "lab-reader@lab.example"
+          name = "ADM Reader"
+          sam_account_name = "adm-reader"
+          principal_name = "adm-reader@adm.example"
           ou_id = "users"
         }
       }
       groups = {
         readers = {
           name = "Readers"
-          sam_account_name = "lab-readers"
+          sam_account_name = "adm-readers"
           ou_id = "identity"
           membership = { user_ids = ["reader"], group_ids = [] }
         }
         unmanaged = {
           name = "Unmanaged"
-          sam_account_name = "lab-unmanaged"
+          sam_account_name = "adm-unmanaged"
           ou_id = "identity"
         }
       }
@@ -92,7 +92,7 @@ run "reject_unknown_ou" {
       groups = {
         readers = {
           name = "Readers"
-          sam_account_name = "lab-readers"
+          sam_account_name = "adm-readers"
           ou_id = "absent"
         }
       }
