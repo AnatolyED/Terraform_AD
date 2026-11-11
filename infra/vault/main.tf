@@ -1,5 +1,5 @@
 locals {
-  vault_clusters = yamldecode(file("${path.module}/../../inventory/vault/clusters.yaml"))
+  vault_clusters = yamldecode(file("${var.inventory_root}/vault/clusters.yaml"))
   cluster = local.vault_clusters[var.vault_cluster_id]
   vault_cluster_addresses = [for cluster in values(local.vault_clusters) : lower(trimsuffix(cluster.address, ":443"))]
   rotation_assignments = flatten([
@@ -8,7 +8,7 @@ locals {
     ]
   ])
 
-  ad_inventory_directory = "${path.module}/../../inventory/active-directory/${local.cluster.ad_environment}"
+  ad_inventory_directory = "${var.inventory_root}/active-directory/${local.cluster.ad_environment}"
   ad_groups = yamldecode(file("${local.ad_inventory_directory}/groups.yaml"))
   ad_users = yamldecode(file("${local.ad_inventory_directory}/users.yaml"))
   ldap_ca_certificate = var.vault_ldap_ca_file == null ? null : file(var.vault_ldap_ca_file)

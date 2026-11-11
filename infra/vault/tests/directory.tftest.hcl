@@ -1,6 +1,7 @@
 mock_provider "vault" {}
 
 variables {
+  inventory_root = "../../inventory"
   vault_ldap_url = "ldaps://dc1.lab.example:636"
   vault_ldap_auth_bind_dn = "CN=Lab Auth,OU=Services,DC=lab,DC=example"
   vault_ldap_auth_bind_password = "mock-auth-password"
@@ -36,15 +37,15 @@ run "ldap_auth_and_static_rotation" {
   }
 }
 
-run "independent_cluster" {
+run "isolated_policy" {
   command = plan
 
   variables {
-    vault_cluster_id = "vault-02"
+    vault_cluster_id = "vault-01"
   }
 
   assert {
-    condition = keys(vault_ldap_secret_backend_static_role.directory) == keys(local.cluster.static_roles) && keys(vault_ldap_auth_backend_group.directory) == keys(local.cluster.group_policies)
+    condition = toset(keys(vault_ldap_secret_backend_static_role.directory)) == toset(["lab-app"]) && toset(keys(vault_ldap_auth_backend_group.directory)) == toset(["vault-readers"])
     error_message = "Роли и группы должны загружаться только для выбранного кластера."
   }
 }

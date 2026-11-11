@@ -9,3 +9,6 @@ groups:
 services:
   name: Services
   parent_id: identity
+protected-probe:
+  name: ProtectedProbe
+  parent_id: identity

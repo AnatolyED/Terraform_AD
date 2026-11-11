@@ -1,0 +1,59 @@
+name: terraform-ad-debian12-test
+
+services:
+  gitlab:
+    profiles: [terraform]
+    image: terraform-ad-lab/gitlab:19.5.1
+    pull_policy: never
+    hostname: ${LAB_GITLAB_HOST}
+    shm_size: 256m
+    ports:
+      - "${LAB_GITLAB_BIND_IP:-127.0.0.1}:${LAB_GITLAB_PORT}:${LAB_GITLAB_PORT}"
+    environment:
+      GITLAB_OMNIBUS_CONFIG: |
+        external_url 'https://${LAB_GITLAB_HOST}:${LAB_GITLAB_PORT}'
+        letsencrypt['enable'] = false
+        nginx['ssl_certificate'] = '/lab-tls/gitlab.pem'
+        nginx['ssl_certificate_key'] = '/lab-tls/gitlab.key'
+        puma['worker_processes'] = 0
+        sidekiq['concurrency'] = 5
+        prometheus_monitoring['enable'] = false
+        gitlab_kas['enable'] = false
+    volumes:
+      - gitlab-config:/etc/gitlab
+      - gitlab-data:/var/opt/gitlab
+      - gitlab-logs:/var/log/gitlab
+      - "${LAB_RUNTIME}/tls/gitlab.pem:/lab-tls/gitlab.pem:ro"
+      - "${LAB_RUNTIME}/tls/gitlab.key:/lab-tls/gitlab.key:ro"
+    networks:
+      default:
+        aliases: ["${LAB_GITLAB_HOST}"]
+
+  vault:
+    profiles: [vault]
+    image: terraform-ad-lab/vault:2.2.1
+    pull_policy: never
+    cap_add: [IPC_LOCK]
+    ports:
+      - "${LAB_VAULT_BIND_IP:-127.0.0.1}:${LAB_VAULT_PORT}:8200"
+    extra_hosts:
+      - "${LAB_AD_HOST}:${LAB_AD_IP}"
+    command: [server, -config=/lab-tls/vault.hcl]
+    volumes:
+      - vault-data:/vault/file
+      - "${LAB_RUNTIME}/tls/vault.pem:/lab-tls/vault.pem:ro"
+      - "${LAB_RUNTIME}/tls/vault.key:/lab-tls/vault.key:ro"
+      - "${LAB_RUNTIME}/tls/vault.hcl:/lab-tls/vault.hcl:ro"
+    networks:
+      default:
+        aliases: ["${LAB_VAULT_HOST}"]
+
+networks:
+  default:
+    name: terraform-ad-debian12-test
+
+volumes:
+  gitlab-config:
+  gitlab-data:
+  gitlab-logs:
+  vault-data:

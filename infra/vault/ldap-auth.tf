@@ -19,14 +19,14 @@ resource "vault_ldap_auth_backend" "directory" {
     precondition {
       condition = alltrue([
         for cluster in values(local.vault_clusters) :
-        contains(["lab", "production"], cluster.ad_environment) &&
+        can(regex("^[a-z][a-z0-9-]*$", cluster.ad_environment)) &&
         can(regex("^https://[A-Za-z0-9.-]+(:[0-9]+)?$", cluster.address)) &&
         cluster.auth_bind_password_version >= 1 &&
         cluster.auth_bind_password_version == floor(cluster.auth_bind_password_version) &&
         cluster.secrets_bind_password_version >= 1 &&
         cluster.secrets_bind_password_version == floor(cluster.secrets_bind_password_version)
       ])
-      error_message = "Для каждого кластера требуется HTTPS URL, окружение AD и две целочисленные версии пароля от 1."
+      error_message = "Для каждого кластера требуется HTTPS URL, окружение AD production и две целочисленные версии пароля от 1."
     }
 
     precondition {

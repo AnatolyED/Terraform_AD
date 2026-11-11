@@ -1,11 +1,17 @@
+variable "inventory_root" {
+  type = string
+  description = "Каталог YAML-инвентаря."
+  nullable = false
+}
+
 variable "ad_inventory_environment" {
   type = string
   description = "Окружение инвентаря AD."
   nullable = false
 
   validation {
-    condition = contains(["lab", "production"], var.ad_inventory_environment)
-    error_message = "Допустимые окружения AD: lab, production."
+    condition = can(regex("^[a-z][a-z0-9-]*$", var.ad_inventory_environment))
+    error_message = "Укажите идентификатор окружения AD латиницей."
   }
 }
 

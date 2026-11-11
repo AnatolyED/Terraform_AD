@@ -1,5 +1,5 @@
 locals {
-  inventory_directory = "${path.module}/../../inventory/active-directory/${var.ad_inventory_environment}"
+  inventory_directory = "${var.inventory_root}/active-directory/${var.ad_inventory_environment}"
 }
 
 provider "ad" {

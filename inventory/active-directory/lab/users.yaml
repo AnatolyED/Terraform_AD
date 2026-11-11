@@ -3,7 +3,15 @@ lab-reader:
   sam_account_name: lab-reader
   principal_name: lab-reader@lab.example
   ou_id: users
-  enabled: false
+  enabled: true
+  change_password_at_logon: false
+lab-outsider:
+  name: Lab Outsider
+  sam_account_name: lab-outsider
+  principal_name: lab-outsider@lab.example
+  ou_id: users
+  enabled: true
+  change_password_at_logon: false
 lab-app:
   name: Lab Application
   sam_account_name: lab-app
