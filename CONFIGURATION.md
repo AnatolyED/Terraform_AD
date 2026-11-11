@@ -72,7 +72,8 @@ vault-01:
 | --- | --- |
 | `AD_DEPLOY_ENABLED` | `false` по умолчанию. `true` включает `ad:plan` и `ad:apply` |
 | `AD_DEPLOY_ENVIRONMENT` | `production` по умолчанию и единственное допустимое значение. Используются scope `ad/production` и state `ad-production` |
-| `VAULT_DEPLOY_MODE` | `off` по умолчанию, `all` включает все строки матрицы |
+| `VAULT_DEPLOY_MODE` | `off` по умолчанию, `single` включает выбранный Vault, `all` включает все строки матрицы |
+| `VAULT_TARGET_ID` | Ключ строки матрицы для режима `single` |
 | `TF_CLI_CONFIG_FILE` | Необязательная GitLab-переменная типа File. Задаёт собственную конфигурацию источников провайдеров |
 
 ### AD

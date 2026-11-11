@@ -6,3 +6,6 @@
 *.tfvars.json
 crash.log
 crash.*.log
+.runner/
+.lab/
+*.local.env

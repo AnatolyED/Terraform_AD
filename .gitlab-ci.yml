@@ -1,6 +1,7 @@
 default:
   image:
-    name: docker.io/hashicorp/terraform:1.17.1@sha256:a5d5a5a892c98f60fcbfa81eac2a40fc19e7b3fa7719bccae10ff6111d22524a
+    name: terraform-ad/terraform:1.17.1
+    pull_policy: never
     entrypoint: [""]
     docker:
       platform: linux/amd64
@@ -23,10 +24,12 @@ variables:
   AD_DEPLOY_ENABLED: "false"
   AD_DEPLOY_ENVIRONMENT: "production"
   VAULT_DEPLOY_MODE: "off"
+  VAULT_TARGET_ID: ""
 
 .terraform:
   before_script:
     - export TF_CLI_CONFIG_FILE="${TF_CLI_CONFIG_FILE:-$CI_PROJECT_DIR/config/terraform.tfrc}"
+    - if [ -s "${CI_SERVER_TLS_CA_FILE:-}" ]; then export SSL_CERT_FILE="$CI_SERVER_TLS_CA_FILE"; fi
     - cd "$TERRAFORM_ROOT"
 
 .terraform_live:
@@ -35,6 +38,11 @@ variables:
     - terraform-deploy
   before_script:
     - export TF_CLI_CONFIG_FILE="${TF_CLI_CONFIG_FILE:-$CI_PROJECT_DIR/config/terraform.tfrc}"
+    - if [ -s "${CI_SERVER_TLS_CA_FILE:-}" ]; then export SSL_CERT_FILE="$CI_SERVER_TLS_CA_FILE"; fi
+    - export TF_VAR_inventory_root="$CI_PROJECT_DIR/inventory"
+    - sh "$CI_PROJECT_DIR/deploy/check-live-inputs.sh" "$TERRAFORM_ROOT"
+    - export TF_VAR_inventory_root=../../inventory
+    - if [ "$TERRAFORM_ROOT" = infra/vault ]; then cp "$TF_VAR_vault_ldap_ca_file" /tmp/terraform-ad-ldap-ca.pem; export TF_VAR_vault_ldap_ca_file=/tmp/terraform-ad-ldap-ca.pem; fi
     - export TF_HTTP_ADDRESS="$CI_API_V4_URL/projects/$CI_PROJECT_ID/terraform/state/$TF_STATE_NAME"
     - export TF_HTTP_LOCK_ADDRESS="$TF_HTTP_ADDRESS/lock"
     - export TF_HTTP_UNLOCK_ADDRESS="$TF_HTTP_ADDRESS/lock"
@@ -54,7 +62,7 @@ variables:
     TF_STATE_NAME: "ad-$AD_DEPLOY_ENVIRONMENT"
   resource_group: "ad-$AD_DEPLOY_ENVIRONMENT"
   rules:
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_REF_PROTECTED == "true" && $AD_DEPLOY_ENABLED == "true" && $AD_DEPLOY_ENVIRONMENT == "production"'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_REF_PROTECTED == "true" && $AD_DEPLOY_ENABLED == "true"'
 
 .vault_live:
   extends: .terraform_live
@@ -69,7 +77,7 @@ variables:
   resource_group: "vault-$VAULT_CLUSTER_ID"
   timeout: 15m
   rules:
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_REF_PROTECTED == "true" && $VAULT_DEPLOY_MODE == "all"'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_REF_PROTECTED == "true" && ($VAULT_DEPLOY_MODE == "all" || ($VAULT_DEPLOY_MODE == "single" && $VAULT_CLUSTER_ID == $VAULT_TARGET_ID))'
 
 ad:validate:
   extends: .terraform

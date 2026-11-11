@@ -19,7 +19,7 @@ resource "vault_ldap_auth_backend" "directory" {
     precondition {
       condition = alltrue([
         for cluster in values(local.vault_clusters) :
-        cluster.ad_environment == "production" &&
+        can(regex("^[a-z][a-z0-9-]*$", cluster.ad_environment)) &&
         can(regex("^https://[A-Za-z0-9.-]+(:[0-9]+)?$", cluster.address)) &&
         cluster.auth_bind_password_version >= 1 &&
         cluster.auth_bind_password_version == floor(cluster.auth_bind_password_version) &&

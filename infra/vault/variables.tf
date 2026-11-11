@@ -1,3 +1,9 @@
+variable "inventory_root" {
+  type = string
+  description = "Каталог YAML-инвентаря."
+  nullable = false
+}
+
 variable "vault_cluster_id" {
   type = string
   description = "Ключ кластера Vault из YAML."

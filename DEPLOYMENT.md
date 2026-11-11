@@ -6,7 +6,16 @@
 
 Включите GitLab-managed Terraform state и доступ к Package Registry, если используется внутренний пакет. Проверьте HTTPS-доступ Runner к `<GITLAB_URL>` и к каждому `<VAULT_API_URL>`, доступ к `<AD_FQDN>:636` и доступ Vault к LDAPS и OIDC discovery GitLab. Настройте доверие к цепочкам CA. Сверьте время GitLab, Runner, Vault и AD.
 
-Подготовьте образ Terraform из `.gitlab-ci.yml`. При закрытом доступе к Docker Hub загрузите образ в согласованный реестр или перенесите его через `docker image save` и `docker image load`. Укажите доступный образ с проверенным digest в CI. Зеркало Docker-пакетов Яндекса предназначено для установки Docker Engine. Для OCI-образов используйте реестр или архив. Для провайдеров используйте `config/terraform.tfrc` или передайте альтернативную конфигурацию через GitLab File-переменную `TF_CLI_CONFIG_FILE`. Во всех случаях сохраните проверку `.terraform.lock.hcl`.
+На Debian 12 amd64 установите Docker Engine, Compose, `curl` и `openssl` из доступного APT-источника. Перенесите `runner-images.tar`, `provider-mirror/` и `SHA256SUMS`. Для каждой роли Runner создайте проектную регистрацию в GitLab с тегом `terraform-docker` для `validate` и `terraform-deploy` для `deploy`. Отключите запуск заданий без тега. Проверьте совместимость рабочего GitLab с Runner 19.5.1 перед регистрацией.
+
+Создайте локальный файл `runner.local.env` с Bash-переменными. Укажите `GITLAB_URL`, `GITLAB_CA_FILE`, `GITLAB_PROJECT_ID`, `OFFLINE_BUNDLE`, `AD_HOST`, `AD_CA_FILE`, `AD_MANAGED_BASE_DN` и `RUNNER_KIND`. Для проверки Vault добавьте массив `VAULT_ENDPOINTS` со строками `HTTPS_URL|ПУТЬ_К_CA`. При необходимости задайте `AD_PORT`, `RUNNER_STATE_ROOT` и массив `RUNNER_EXTRA_HOSTS` со строками `имя:IP`.
+
+```sh
+bash deploy/install-runner.sh --check runner.local.env
+bash deploy/install-runner.sh --install runner.local.env
+```
+
+Выполните оба запуска для `RUNNER_KIND=validate` и `RUNNER_KIND=deploy`. Токен регистрации `glrt-…` вводится при установке. Скрипт проверяет SHA-256, импортирует образы и подключает зеркало только для чтения в `/providers`. Для рабочего проекта добавьте реальные YAML через merge request.
 
 ## 2. Действующий Active Directory
 
@@ -30,6 +39,7 @@ export TF_HTTP_USERNAME='<GITLAB_USERNAME>'
 read -rs TF_HTTP_PASSWORD
 export TF_HTTP_PASSWORD
 export TF_VAR_ad_inventory_environment=production
+export TF_VAR_inventory_root="$PWD/inventory"
 terraform -chdir=infra/active-directory init -reconfigure -lockfile=readonly
 terraform -chdir=infra/active-directory import 'module.directory.ad_ou.top_level["<OU_KEY>"]' '<OU_GUID>'
 terraform -chdir=infra/active-directory import 'module.directory.ad_ou.child["<CHILD_OU_KEY>"]' '<CHILD_OU_GUID>'
@@ -104,7 +114,7 @@ terraform -chdir=infra/vault import 'vault_ldap_secret_backend_static_role.direc
 
 ## 5. Первое применение в production
 
-У `isometry/ad` 0.5.0 есть дефект чтения защиты OU под делегированной учёткой. Перед применением плана с защищёнными OU проверьте исправленную версию. [Патч и инструкция по подключению](https://github.com/AnatolyED/Terraform_AD/tree/Test/fix).
+Для существующего state сначала проверьте переход на `isometry/ad` 0.6.0-ou-dacl.1 на отдельной копии. План не должен заменять или удалять объекты. [Исходный патч и сборка](fix/README.md).
 
 1. Проверьте делегирование, резервную копию state и импорт существующих объектов. Заполните фактические адреса всех Vault. Установите `AD_DEPLOY_ENVIRONMENT=production`, `AD_DEPLOY_ENABLED=true` и `VAULT_DEPLOY_MODE=all`.
 2. В `ad:plan` проверьте OU, GUID импортированных объектов, полный состав групп и операции с паролями. В `vault:plan` проверьте адрес каждого кластера, политики, LDAP mounts и роли. Подтвердите ручной `ad:apply`, затем `vault:apply` для сохранённых планов того же pipeline.
