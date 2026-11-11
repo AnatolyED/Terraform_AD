@@ -141,7 +141,7 @@ cp -- "$repo/fix/ad-provider.lock.hcl" "$lab_repo/infra/active-directory/.terraf
 printf '%s\n' 'disable_checkpoint = true' 'provider_installation {' '  filesystem_mirror {' '    path = "/providers"' '  }' '}' > "$lab_repo/config/terraform.tfrc"
 
 lab_inventory="$lab_repo/inventory/active-directory/lab"
-printf 'identity:\n  name: Identity\nusers:\n  name: Users\n  parent_id: identity\ngroups:\n  name: Groups\n  parent_id: identity\nservices:\n  name: Services\n  parent_id: identity\n' > "$lab_inventory/organizational-units.yaml"
+printf 'identity:\n  name: Identity\nusers:\n  name: Users\n  parent_id: identity\ngroups:\n  name: Groups\n  parent_id: identity\nservices:\n  name: Services\n  parent_id: identity\n' > "$lab_inventory/ou.yaml"
 : > "$lab_inventory/users.yaml"
 : > "$lab_inventory/groups.yaml"
 : > "$lab_repo/inventory/vault/clusters.yaml"

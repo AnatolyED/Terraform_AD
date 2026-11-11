@@ -34,7 +34,7 @@ run "explicit_membership" {
 
   variables {
     inventory = {
-      organizational_units = {
+      ou = {
         identity = { name = "Identity" }
         users = { name = "Users", parent_id = "identity" }
       }
@@ -87,7 +87,7 @@ run "reject_unknown_ou" {
 
   variables {
     inventory = {
-      organizational_units = {}
+      ou = {}
       users = {}
       groups = {
         readers = {

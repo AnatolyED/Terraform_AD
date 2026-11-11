@@ -4,7 +4,7 @@
 
 Замените значения `.example` своими данными. Ключи `services`, `app-readers` и `app-service` стабильны. Ссылки в YAML используют эти ключи.
 
-`inventory/active-directory/production/organizational-units.yaml`
+`inventory/active-directory/production/ou.yaml`
 
 ```yaml
 services:

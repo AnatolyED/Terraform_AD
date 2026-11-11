@@ -4,7 +4,7 @@ resource "ad_user" "directory" {
   name = each.value.name
   sam_account_name = each.value.sam_account_name
   principal_name = each.value.principal_name
-  container = local.organizational_unit_dns[each.value.ou_id]
+  container = local.ou_dns[each.value.ou_id]
   enabled = each.value.enabled
   password = lookup(var.user_passwords, each.key, null)
   password_version = each.value.password_version
