@@ -21,7 +21,7 @@ variables:
   TF_IN_AUTOMATION: "true"
   TF_INPUT: "false"
   AD_DEPLOY_ENABLED: "false"
-  AD_DEPLOY_ENVIRONMENT: "lab"
+  AD_DEPLOY_ENVIRONMENT: "production"
   VAULT_DEPLOY_MODE: "off"
 
 .terraform:
@@ -54,7 +54,7 @@ variables:
     TF_STATE_NAME: "ad-$AD_DEPLOY_ENVIRONMENT"
   resource_group: "ad-$AD_DEPLOY_ENVIRONMENT"
   rules:
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_REF_PROTECTED == "true" && $AD_DEPLOY_ENABLED == "true" && $AD_DEPLOY_ENVIRONMENT =~ /^(lab|production)$/'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_REF_PROTECTED == "true" && $AD_DEPLOY_ENABLED == "true" && $AD_DEPLOY_ENVIRONMENT == "production"'
 
 .vault_live:
   extends: .terraform_live
@@ -69,7 +69,7 @@ variables:
   resource_group: "vault-$VAULT_CLUSTER_ID"
   timeout: 15m
   rules:
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_REF_PROTECTED == "true" && ($VAULT_DEPLOY_MODE == "all" || ($VAULT_DEPLOY_MODE == "lab" && $VAULT_CLUSTER_ID == "vault-01"))'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_REF_PROTECTED == "true" && $VAULT_DEPLOY_MODE == "all"'
 
 ad:validate:
   extends: .terraform

@@ -1,6 +1,6 @@
 vault-01:
   address: https://vault-01.example
-  ad_environment: lab
+  ad_environment: production
   auth_bind_password_version: 1
   secrets_bind_password_version: 1
   policies: {}

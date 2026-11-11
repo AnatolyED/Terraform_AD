@@ -12,7 +12,7 @@ variable "user_passwords" {
 
 variable "inventory" {
   type = object({
-    organizational_units = map(object({
+    ou = map(object({
       name = string
       parent_id = optional(string)
       description = optional(string)
@@ -48,25 +48,25 @@ variable "inventory" {
 
   validation {
     condition = alltrue([
-      for ou in values(var.inventory.organizational_units) :
-      ou.parent_id == null || try(var.inventory.organizational_units[ou.parent_id].parent_id == null, false)
+      for ou in values(var.inventory.ou) :
+      ou.parent_id == null || try(var.inventory.ou[ou.parent_id].parent_id == null, false)
     ])
     error_message = "Вложенная OU должна ссылаться на OU верхнего уровня."
   }
 
   validation {
     condition = alltrue(concat(
-      [for group in values(var.inventory.groups) : contains(keys(var.inventory.organizational_units), group.ou_id)],
-      [for user in values(var.inventory.users) : contains(keys(var.inventory.organizational_units), user.ou_id)]
+      [for group in values(var.inventory.groups) : contains(keys(var.inventory.ou), group.ou_id)],
+      [for user in values(var.inventory.users) : contains(keys(var.inventory.ou), user.ou_id)]
     ))
     error_message = "ou_id должен указывать на OU из инвентаря."
   }
 
   validation {
     condition = length(distinct([
-      for ou in values(var.inventory.organizational_units) :
+      for ou in values(var.inventory.ou) :
       jsonencode([ou.parent_id, lower(ou.name)])
-    ])) == length(var.inventory.organizational_units)
+    ])) == length(var.inventory.ou)
     error_message = "Имена OU должны быть уникальны в пределах родительской OU."
   }
 

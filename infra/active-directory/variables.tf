@@ -4,8 +4,8 @@ variable "ad_inventory_environment" {
   nullable = false
 
   validation {
-    condition = contains(["lab", "production"], var.ad_inventory_environment)
-    error_message = "Допустимые окружения AD: lab, production."
+    condition = var.ad_inventory_environment == "production"
+    error_message = "В ветке main поддерживается только окружение AD production."
   }
 }
 

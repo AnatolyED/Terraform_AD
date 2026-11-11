@@ -1,5 +1,5 @@
 locals {
-  organizational_unit_dns = merge(
+  ou_dns = merge(
     { for id, ou in ad_ou.top_level : id => ou.dn },
     { for id, ou in ad_ou.child : id => ou.dn }
   )
@@ -7,7 +7,7 @@ locals {
 
 resource "ad_ou" "top_level" {
   for_each = {
-    for id, ou in var.inventory.organizational_units : id => ou if ou.parent_id == null
+    for id, ou in var.inventory.ou : id => ou if ou.parent_id == null
   }
 
   name = each.value.name
@@ -22,7 +22,7 @@ resource "ad_ou" "top_level" {
 
 resource "ad_ou" "child" {
   for_each = {
-    for id, ou in var.inventory.organizational_units : id => ou if ou.parent_id != null
+    for id, ou in var.inventory.ou : id => ou if ou.parent_id != null
   }
 
   name = each.value.name

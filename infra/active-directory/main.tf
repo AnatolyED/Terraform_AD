@@ -15,7 +15,7 @@ module "directory" {
   managed_base_dn = var.ad_managed_base_dn
   user_passwords = var.ad_user_passwords
   inventory = {
-    organizational_units = yamldecode(file("${local.inventory_directory}/organizational-units.yaml"))
+    ou = yamldecode(file("${local.inventory_directory}/ou.yaml"))
     groups = yamldecode(file("${local.inventory_directory}/groups.yaml"))
     users = yamldecode(file("${local.inventory_directory}/users.yaml"))
   }

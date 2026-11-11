@@ -4,7 +4,7 @@
 
 Замените значения `.example` своими данными. Ключи `services`, `app-readers` и `app-service` стабильны. Ссылки в YAML используют эти ключи.
 
-`inventory/active-directory/production/organizational-units.yaml`
+`inventory/active-directory/production/ou.yaml`
 
 ```yaml
 services:
@@ -71,13 +71,13 @@ vault-01:
 | Переменная GitLab | Значение |
 | --- | --- |
 | `AD_DEPLOY_ENABLED` | `false` по умолчанию. `true` включает `ad:plan` и `ad:apply` |
-| `AD_DEPLOY_ENVIRONMENT` | `lab` или `production`. Определяет инвентарь, scope `ad/<окружение>` и state |
-| `VAULT_DEPLOY_MODE` | `off`, `lab` для `vault-01` или `all` для всех строк матрицы |
+| `AD_DEPLOY_ENVIRONMENT` | `production` по умолчанию и единственное допустимое значение. Используются scope `ad/production` и state `ad-production` |
+| `VAULT_DEPLOY_MODE` | `off` по умолчанию, `all` включает все строки матрицы |
 | `TF_CLI_CONFIG_FILE` | Необязательная GitLab-переменная типа File. Задаёт собственную конфигурацию источников провайдеров |
 
 ### AD
 
-Задайте переменные с областью `ad/<окружение>`.
+Задайте переменные с областью `ad/production`.
 
 | Переменная | Значение |
 | --- | --- |
