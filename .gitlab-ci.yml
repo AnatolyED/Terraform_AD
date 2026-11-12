@@ -1,0 +1,171 @@
+default:
+  image:
+    name: $TERRAFORM_IMAGE
+    entrypoint: [""]
+    docker:
+      platform: linux/amd64
+  tags:
+    - terraform-docker
+
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+
+stages:
+  - validate
+  - plan
+  - apply
+
+variables:
+  TERRAFORM_IMAGE: "hashicorp/terraform:1.17.1"
+  TERRAFORM_SOURCE: "upstream"
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+  AD_DEPLOY_ENABLED: "false"
+  AD_DEPLOY_ENVIRONMENT: "production"
+  VAULT_DEPLOY_MODE: "off"
+  VAULT_TARGET_ID: ""
+
+.terraform:
+  before_script:
+    - &configure_gitlab_ca |
+      if [ -s "${CI_SERVER_TLS_CA_FILE:-}" ]; then
+        export SSL_CERT_FILE="$(mktemp)"
+        cat /etc/ssl/certs/ca-certificates.crt "$CI_SERVER_TLS_CA_FILE" > "$SSL_CERT_FILE"
+      fi
+
+.terraform_live:
+  extends: .terraform
+  tags:
+    - terraform-deploy
+  before_script:
+    - *configure_gitlab_ca
+    - export TF_VAR_inventory_root="$CI_PROJECT_DIR/data"
+    - sh "$CI_PROJECT_DIR/config/check-live-inputs.sh" "$TERRAFORM_ROOT"
+    - export TF_VAR_inventory_root=../../data
+    - if [ "$TERRAFORM_ROOT" = infra/vault ]; then cp "$TF_VAR_vault_ldap_ca_file" /tmp/terraform-ad-ldap-ca.pem; export TF_VAR_vault_ldap_ca_file=/tmp/terraform-ad-ldap-ca.pem; fi
+    - export TF_HTTP_ADDRESS="$CI_API_V4_URL/projects/$CI_PROJECT_ID/terraform/state/$TF_STATE_NAME"
+    - export TF_HTTP_LOCK_ADDRESS="$TF_HTTP_ADDRESS/lock"
+    - export TF_HTTP_UNLOCK_ADDRESS="$TF_HTTP_ADDRESS/lock"
+    - export TF_HTTP_LOCK_METHOD=POST
+    - export TF_HTTP_UNLOCK_METHOD=DELETE
+    - export TF_HTTP_USERNAME=gitlab-ci-token
+    - export TF_HTTP_PASSWORD="$CI_JOB_TOKEN"
+    - export TF_HTTP_RETRY_WAIT_MIN=5
+    - sh config/terraform-init.sh "$TERRAFORM_ROOT"
+    - cd "$TERRAFORM_ROOT"
+
+.ad_live:
+  extends: .terraform_live
+  variables:
+    TERRAFORM_ROOT: infra/active-directory
+    TF_VAR_ad_inventory_environment: "$AD_DEPLOY_ENVIRONMENT"
+    TF_STATE_NAME: "ad-$AD_DEPLOY_ENVIRONMENT"
+  resource_group: "ad-$AD_DEPLOY_ENVIRONMENT"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_REF_PROTECTED == "true" && $AD_DEPLOY_ENABLED == "true"'
+
+.vault_live:
+  extends: .terraform_live
+  parallel:
+    matrix:
+      - VAULT_CLUSTER_ID: [vault-01]
+  variables:
+    TERRAFORM_ROOT: infra/vault
+    TF_VAR_vault_cluster_id: "$VAULT_CLUSTER_ID"
+    TF_VAR_vault_use_gitlab_jwt: "true"
+    TF_STATE_NAME: "vault-$VAULT_CLUSTER_ID"
+  resource_group: "vault-$VAULT_CLUSTER_ID"
+  timeout: 15m
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH && $CI_COMMIT_REF_PROTECTED == "true" && ($VAULT_DEPLOY_MODE == "all" || ($VAULT_DEPLOY_MODE == "single" && $VAULT_CLUSTER_ID == $VAULT_TARGET_ID))'
+
+ad:validate:
+  extends: .terraform
+  stage: validate
+  variables:
+    TERRAFORM_ROOT: infra/active-directory
+  script:
+    - sh config/terraform-init.sh "$TERRAFORM_ROOT" -backend=false
+    - terraform -chdir="$TERRAFORM_ROOT" validate -no-color
+
+vault:validate:
+  extends: .terraform
+  stage: validate
+  variables:
+    TERRAFORM_ROOT: infra/vault
+  script:
+    - sh config/terraform-init.sh "$TERRAFORM_ROOT" -backend=false
+    - terraform -chdir="$TERRAFORM_ROOT" validate -no-color
+
+ad:plan:
+  extends: .ad_live
+  stage: plan
+  environment:
+    name: "ad/$AD_DEPLOY_ENVIRONMENT"
+    action: verify
+  script:
+    - terraform plan -lock-timeout=2m -no-color -out=deployment.tfplan
+  artifacts:
+    access: maintainer
+    expire_in: 1 day
+    paths:
+      - infra/active-directory/deployment.tfplan
+
+ad:apply:
+  extends: .ad_live
+  stage: apply
+  when: manual
+  allow_failure: false
+  environment:
+    name: "ad/$AD_DEPLOY_ENVIRONMENT"
+  needs:
+    - job: ad:plan
+      artifacts: true
+  script:
+    - terraform apply -lock-timeout=2m -no-color deployment.tfplan
+
+vault:plan:
+  extends: .vault_live
+  stage: plan
+  variables:
+    TF_VAR_vault_gitlab_role: terraform-plan
+  id_tokens:
+    TF_VAR_vault_gitlab_jwt:
+      aud: "$CI_SERVER_URL/terraform/vault/plan"
+  environment:
+    name: "vault/$VAULT_CLUSTER_ID"
+    action: verify
+  script:
+    - terraform plan -lock-timeout=2m -no-color -out=deployment.tfplan
+  artifacts:
+    access: maintainer
+    expire_in: 1 day
+    paths:
+      - infra/vault/deployment.tfplan
+
+vault:apply:
+  extends: .vault_live
+  stage: apply
+  when: manual
+  allow_failure: false
+  variables:
+    TF_VAR_vault_gitlab_role: terraform-apply
+  id_tokens:
+    TF_VAR_vault_gitlab_jwt:
+      aud: "$CI_SERVER_URL/terraform/vault/apply"
+  environment:
+    name: "vault/$VAULT_CLUSTER_ID"
+    action: start
+  needs:
+    - job: ad:apply
+      optional: true
+      artifacts: false
+    - job: vault:plan
+      artifacts: true
+      parallel:
+        matrix:
+          - VAULT_CLUSTER_ID: ['$[[ matrix.VAULT_CLUSTER_ID ]]']
+  script:
+    - terraform apply -lock-timeout=2m -no-color deployment.tfplan

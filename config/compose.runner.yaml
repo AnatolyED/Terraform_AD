@@ -1,0 +1,12 @@
+name: terraform-ad-production
+
+services:
+  runner:
+    image: ${RUNNER_IMAGE:?Set RUNNER_IMAGE}
+    container_name: terraform-ad-runner
+    pull_policy: never
+    restart: unless-stopped
+    volumes:
+      - /srv/terraform-ad-runner:/etc/gitlab-runner
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./config.toml:/runner-template.toml:ro

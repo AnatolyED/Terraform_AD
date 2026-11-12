@@ -1,0 +1,5 @@
+[[runners]]
+  [runners.docker]
+    image = "hashicorp/terraform:1.17.1"
+    privileged = false
+    pull_policy = "if-not-present"
