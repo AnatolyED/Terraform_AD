@@ -1,6 +1,8 @@
 * text=auto
 *.tf text eol=lf
 *.hcl text eol=lf
+*.tfrc text eol=lf
+*.toml text eol=lf
 *.yaml text eol=lf
 *.yml text eol=lf
 Dockerfile text eol=lf

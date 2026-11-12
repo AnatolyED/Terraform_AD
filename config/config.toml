@@ -1,0 +1,6 @@
+[[runners]]
+  [runners.docker]
+    image = "hashicorp/terraform:1.17.1"
+    privileged = false
+    pull_policy = "if-not-present"
+    extra_hosts = ["gitlab.aed.adm:host-gateway", "dc01.aed.adm:10.0.2.140", "vault.aed.adm:10.0.2.73"]

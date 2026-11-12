@@ -1,7 +1,6 @@
 default:
   image:
-    name: terraform-ad/terraform:1.17.1
-    pull_policy: never
+    name: $TERRAFORM_IMAGE
     entrypoint: [""]
     docker:
       platform: linux/amd64
@@ -19,28 +18,31 @@ stages:
   - apply
 
 variables:
+  TERRAFORM_IMAGE: "hashicorp/terraform:1.17.1"
+  TERRAFORM_SOURCE: "upstream"
   TF_IN_AUTOMATION: "true"
   TF_INPUT: "false"
   AD_DEPLOY_ENABLED: "false"
-  AD_DEPLOY_ENVIRONMENT: "production"
+  AD_DEPLOY_ENVIRONMENT: "adm"
   VAULT_DEPLOY_MODE: "off"
   VAULT_TARGET_ID: ""
 
 .terraform:
   before_script:
-    - export TF_CLI_CONFIG_FILE="${TF_CLI_CONFIG_FILE:-$CI_PROJECT_DIR/config/terraform.tfrc}"
-    - if [ -s "${CI_SERVER_TLS_CA_FILE:-}" ]; then export SSL_CERT_FILE="$CI_SERVER_TLS_CA_FILE"; fi
-    - cd "$TERRAFORM_ROOT"
+    - &configure_gitlab_ca |
+      if [ -s "${CI_SERVER_TLS_CA_FILE:-}" ]; then
+        export SSL_CERT_FILE="$(mktemp)"
+        cat /etc/ssl/certs/ca-certificates.crt "$CI_SERVER_TLS_CA_FILE" > "$SSL_CERT_FILE"
+      fi
 
 .terraform_live:
   extends: .terraform
   tags:
     - terraform-deploy
   before_script:
-    - export TF_CLI_CONFIG_FILE="${TF_CLI_CONFIG_FILE:-$CI_PROJECT_DIR/config/terraform.tfrc}"
-    - if [ -s "${CI_SERVER_TLS_CA_FILE:-}" ]; then export SSL_CERT_FILE="$CI_SERVER_TLS_CA_FILE"; fi
+    - *configure_gitlab_ca
     - export TF_VAR_inventory_root="$CI_PROJECT_DIR/data"
-    - sh "$CI_PROJECT_DIR/deploy/check-live-inputs.sh" "$TERRAFORM_ROOT"
+    - sh "$CI_PROJECT_DIR/config/check-live-inputs.sh" "$TERRAFORM_ROOT"
     - export TF_VAR_inventory_root=../../data
     - if [ "$TERRAFORM_ROOT" = infra/vault ]; then cp "$TF_VAR_vault_ldap_ca_file" /tmp/terraform-ad-ldap-ca.pem; export TF_VAR_vault_ldap_ca_file=/tmp/terraform-ad-ldap-ca.pem; fi
     - export TF_HTTP_ADDRESS="$CI_API_V4_URL/projects/$CI_PROJECT_ID/terraform/state/$TF_STATE_NAME"
@@ -51,8 +53,8 @@ variables:
     - export TF_HTTP_USERNAME=gitlab-ci-token
     - export TF_HTTP_PASSWORD="$CI_JOB_TOKEN"
     - export TF_HTTP_RETRY_WAIT_MIN=5
+    - sh config/terraform-init.sh "$TERRAFORM_ROOT"
     - cd "$TERRAFORM_ROOT"
-    - terraform init -lockfile=readonly -no-color
 
 .ad_live:
   extends: .terraform_live
@@ -68,7 +70,7 @@ variables:
   extends: .terraform_live
   parallel:
     matrix:
-      - VAULT_CLUSTER_ID: [vault-01, vault-02, vault-03, vault-04, vault-05]
+      - VAULT_CLUSTER_ID: [vault-01]
   variables:
     TERRAFORM_ROOT: infra/vault
     TF_VAR_vault_cluster_id: "$VAULT_CLUSTER_ID"
@@ -85,8 +87,8 @@ ad:validate:
   variables:
     TERRAFORM_ROOT: infra/active-directory
   script:
-    - terraform init -backend=false -lockfile=readonly -no-color
-    - terraform validate -no-color
+    - sh config/terraform-init.sh "$TERRAFORM_ROOT" -backend=false
+    - terraform -chdir="$TERRAFORM_ROOT" validate -no-color
 
 vault:validate:
   extends: .terraform
@@ -94,8 +96,8 @@ vault:validate:
   variables:
     TERRAFORM_ROOT: infra/vault
   script:
-    - terraform init -backend=false -lockfile=readonly -no-color
-    - terraform validate -no-color
+    - sh config/terraform-init.sh "$TERRAFORM_ROOT" -backend=false
+    - terraform -chdir="$TERRAFORM_ROOT" validate -no-color
 
 ad:plan:
   extends: .ad_live

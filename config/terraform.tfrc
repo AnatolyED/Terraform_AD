@@ -2,6 +2,11 @@ disable_checkpoint = true
 
 provider_installation {
   filesystem_mirror {
-    path = "/providers"
+    path = ".providers"
+    include = ["registry.terraform.io/isometry/ad"]
+  }
+
+  direct {
+    include = ["registry.terraform.io/hashicorp/vault"]
   }
 }

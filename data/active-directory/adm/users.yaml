@@ -1,0 +1,21 @@
+adm-reader:
+  name: ADM Reader
+  sam_account_name: adm-reader
+  principal_name: adm-reader@aed.adm
+  ou_id: users
+  enabled: true
+  change_password_at_logon: false
+adm-outsider:
+  name: ADM Outsider
+  sam_account_name: adm-outsider
+  principal_name: adm-outsider@aed.adm
+  ou_id: users
+  enabled: true
+  change_password_at_logon: false
+adm-app:
+  name: ADM Application
+  sam_account_name: adm-app
+  principal_name: adm-app@aed.adm
+  ou_id: services
+  enabled: true
+  change_password_at_logon: false
