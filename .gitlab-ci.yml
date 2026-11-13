@@ -19,7 +19,7 @@ stages:
 
 variables:
   TERRAFORM_IMAGE: "hashicorp/terraform:1.17.1"
-  AD_DEPLOY_IMAGE: "terraform-ad/terraform-ad-deploy:1.17.1"
+  AD_DEPLOY_IMAGE: "terraform-ad/terraform-ad-deploy:1.17.1-go"
   TERRAFORM_SOURCE: "upstream"
   TF_IN_AUTOMATION: "true"
   TF_INPUT: "false"
@@ -115,7 +115,7 @@ ad:plan:
     name: "ad/$AD_DEPLOY_ENVIRONMENT"
     action: verify
   script:
-    - python3 "$CI_PROJECT_DIR/config/ad-password-bootstrap.py" plan
+    - ad-password-bootstrap plan
   artifacts:
     access: maintainer
     expire_in: 1 day
@@ -138,7 +138,7 @@ ad:apply:
     - job: ad:plan
       artifacts: true
   script:
-    - python3 "$CI_PROJECT_DIR/config/ad-password-bootstrap.py" apply
+    - ad-password-bootstrap apply
 
 vault:plan:
   extends: .vault_live
