@@ -19,6 +19,7 @@ stages:
 
 variables:
   TERRAFORM_IMAGE: "hashicorp/terraform:1.17.1"
+  AD_DEPLOY_IMAGE: "terraform-ad/terraform-ad-deploy:1.17.1"
   TERRAFORM_SOURCE: "upstream"
   TF_IN_AUTOMATION: "true"
   TF_INPUT: "false"
@@ -58,6 +59,11 @@ variables:
 
 .ad_live:
   extends: .terraform_live
+  image:
+    name: $AD_DEPLOY_IMAGE
+    entrypoint: [""]
+    docker:
+      platform: linux/amd64
   variables:
     TERRAFORM_ROOT: infra/active-directory
     TF_VAR_ad_inventory_environment: "$AD_DEPLOY_ENVIRONMENT"
@@ -102,29 +108,37 @@ vault:validate:
 ad:plan:
   extends: .ad_live
   stage: plan
+  id_tokens:
+    AD_BOOTSTRAP_VAULT_JWT:
+      aud: "$CI_SERVER_URL/terraform/ad/bootstrap/plan"
   environment:
     name: "ad/$AD_DEPLOY_ENVIRONMENT"
     action: verify
   script:
-    - terraform plan -lock-timeout=2m -no-color -out=deployment.tfplan
+    - python3 "$CI_PROJECT_DIR/config/ad-password-bootstrap.py" plan
   artifacts:
     access: maintainer
     expire_in: 1 day
     paths:
       - infra/active-directory/deployment.tfplan
+      - infra/active-directory/ad-bootstrap-users.json
 
 ad:apply:
   extends: .ad_live
   stage: apply
+  id_tokens:
+    AD_BOOTSTRAP_VAULT_JWT:
+      aud: "$CI_SERVER_URL/terraform/ad/bootstrap/apply"
   when: manual
   allow_failure: false
   environment:
     name: "ad/$AD_DEPLOY_ENVIRONMENT"
+    action: start
   needs:
     - job: ad:plan
       artifacts: true
   script:
-    - terraform apply -lock-timeout=2m -no-color deployment.tfplan
+    - python3 "$CI_PROJECT_DIR/config/ad-password-bootstrap.py" apply
 
 vault:plan:
   extends: .vault_live
